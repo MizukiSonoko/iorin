@@ -1,4 +1,5 @@
 import MeCab
+import re
 
 class Analysis:
     
@@ -43,12 +44,15 @@ class Analysis:
         print(self.sentences)
 
     def parser(self, sentence):
-        self.syntax = []
+        self.syntax = [""] * len(sentence)
         NPs = []
+        pos = 0
         for i in range(0, len(sentence)-1):
             tmp = self.NP(sentence[i], sentence[i+1])
             if tmp != None:
                 NPs.append(tmp)
+                self.syntax[pos] = tmp[1]
+            pos += 1
         Vs = self.V(sentence)
         AdvP = self.AdvP(sentence)
         As = self.A(sentence)
@@ -56,18 +60,27 @@ class Analysis:
         print(NPs)  
         print(As)
         print(Vs)
+
+
+        while self.syntax.count("") > 0:
+            self.syntax.remove("")
+        print(self.syntax)
                
     def V(self, context):
         Vs = []
         V = ""
+        pos = 0
         for w in context:
-            if "動詞" in w[2] and not "助" in w[2] and not "名" in w[2]:
+            if re.match(r"^動詞",w[2]) != None:
                 V += w[0]
-            elif "接続助詞" in w[2]:
+            elif re.match(r"(接続)?助動?詞", w[2]) != None:
                 if V != "":
                     V += w[0]
-                    Vs.append( ( V, "Vc"))
+                    Vs.append( ( V, "V"))
+                    self.syntax[pos] = "V"
+
                     V = ""
+            pos += 1
         if V != "":
             Vs.append( ( V, "V"))
         return Vs
@@ -75,6 +88,7 @@ class Analysis:
     def A(self, context):
         As = []
         A = ""
+        pos = 0
         for w in context:
             if "形容詞" in w[2]:
                 A += w[0]
@@ -82,16 +96,22 @@ class Analysis:
                 if A != "":
                     A += w[0]
                     As.append( (A, "A"))
+                    self.syntax[pos] = "A"
+
                     A = ""
+            pos += 1
         if A != "":
             As.append( ( A, "A"))
         return As        
 
     def AdvP(self, context):
         AdvPs = []
+        pos = 0
         for w in context:
             if "副詞" in w[2]:            
                 AdvPs.append( ( w[0], "AdvP" ))
+                self.syntax[pos] = "AdvP"
+            pos += 1
         return AdvPs
                         
     def NP(self, w1, w2):
