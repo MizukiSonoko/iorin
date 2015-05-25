@@ -6,6 +6,7 @@ class Analysis:
         self.mecab = MeCab.Tagger ("-Ochasen")
         self.sentences = []
         self.sentence = []
+        self.syntax = []
     
     def analysis(self, txt):
         self.lexer(txt)
@@ -33,7 +34,7 @@ class Analysis:
         self.sentences = []
         tmp = []
         for w in self.sentence:
-            if "句点" in w[2]:
+            if "句点" in w[2]: 
                 self.sentences.append(tmp)
                 tmp = []
             else:
@@ -42,6 +43,7 @@ class Analysis:
         print(self.sentences)
 
     def parser(self, sentence):
+        self.syntax = []
         NPs = []
         for i in range(0, len(sentence)-1):
             tmp = self.NP(sentence[i], sentence[i+1])
@@ -49,22 +51,41 @@ class Analysis:
                 NPs.append(tmp)
         Vs = self.V(sentence)
         AdvP = self.AdvP(sentence)
+        As = self.A(sentence)
         print(AdvP)
-        print(NPs)
+        print(NPs)  
+        print(As)
         print(Vs)
                
     def V(self, context):
         Vs = []
         V = ""
         for w in context:
-            if "動詞" in w[2]:
+            if "動詞" in w[2] and not "助" in w[2] and not "名" in w[2]:
                 V += w[0]
             elif "接続助詞" in w[2]:
-                V += w[0]
-                Vs.append( ( V, "Vc"))
-                V = ""
-        Vs.append( ( V, "V"))
+                if V != "":
+                    V += w[0]
+                    Vs.append( ( V, "Vc"))
+                    V = ""
+        if V != "":
+            Vs.append( ( V, "V"))
         return Vs
+
+    def A(self, context):
+        As = []
+        A = ""
+        for w in context:
+            if "形容詞" in w[2]:
+                A += w[0]
+            elif "助動詞" in w[2]:
+                if A != "":
+                    A += w[0]
+                    As.append( (A, "A"))
+                    A = ""
+        if A != "":
+            As.append( ( A, "A"))
+        return As        
 
     def AdvP(self, context):
         AdvPs = []
@@ -76,7 +97,7 @@ class Analysis:
     def NP(self, w1, w2):
         if len(w1) < 3 or len(w2) < 3:
             return None
-        if "名詞" in w1[2] and "格助詞" in w2[2]:
+        if "名詞" in w1[2] and "助詞" in w2[2]:
             if "ガ" in w2[1]:
                 return w1[0] + w2[0], "NPga"
             elif "ニ" in w2[1]:
@@ -89,16 +110,41 @@ class Analysis:
                 return w1[0] + w2[0], "NPe"
             elif "カラ" in w2[1]:
                 return w1[0] + w2[0], "NPkara"
+            elif "モ" in w2[1]:
+                return w1[0] + w2[0], "NPmo"
+            elif "デ" in w2[1]:
+                return w1[0] + w2[0], "NPmo"
             return w1[0] + w2[0], "NPundef"
+        elif "名詞" in w1[2]:
+            return w1[0], "N"
         return None
 
 
 if __name__ == "__main__":
     a = Analysis()
-    #print("="*20+"\nV[ga]\n")
-    a.analysis("つい最近ミズキが転んで泣いた。そして、ゆっくり立ち上がった。")
-    #a.analysis("さっきミズキが転ぶ。")
-    #a.analysis("昨日ミズキが踊った。そしてイオリが転んだ")
+    print("="*20)
+    s = "つい最近ミズキが転んで泣いた。そして、ゆっくり立ち上がった。"
+    print(s)
+    a.analysis(s)
+    print("="*20)
+    s = "千夜ちゃん、この前の英語のノート見せてくれる？"
+    print(s)
+    a.analysis(s)
+    print("="*20)
+    s = "私もシャロさんみたいな姉が欲しかったです。"
+    print(s)
+    a.analysis(s)
+    print("="*20)
+    s = "私、夕日の中で何度も倒れながら特訓するのがあこがれで～"
+    print(s)
+    a.analysis(s)
+    print("="*20)
+    s = "だんだんココアっぽくなってきてないか……？"
+    print(s)
+    a.analysis(s)
+    print("="*20)
+    
+    
     #a.analysis("ミズキが踊る")
     #print("="*20+"\nV[ga,o]\n")
     #a.analysis("ミズキがイオリを食べた")
