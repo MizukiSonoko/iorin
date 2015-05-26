@@ -1,15 +1,19 @@
 import MeCab
 import re
 
+import sqlite3
+
 class Analysis:
-    
+   
+    con = None
+
     def __init__(self):
         self.mecab = MeCab.Tagger ("-Ochasen")
         self.sentences = []
         self.sentence = []
         self.syntax = []
-        
-    
+        self.con = sqlite3.connect("iori.db", isolation_level=None)        
+
     def analysis(self, txt):
         self.lexer(txt)
         self.split()
@@ -18,6 +22,9 @@ class Analysis:
                 continue
             self.parser(s)
             print("#"*5)
+
+    def finish(self):
+         self.con.close()
 
     def lexer(self, txt):
         self.sentence = []
@@ -45,58 +52,89 @@ class Analysis:
         print(self.sentences)
 
     def parser(self, sentence):
-        self.syntax = [""] * len(sentence)
+        self.syntax = [""] * ( len(sentence) + 1) 
         NPs = []
         pos = 0
         for i in range(0, len(sentence)-1):
             tmp = self.NP(sentence[i], sentence[i+1])
             if tmp != None:
                 NPs.append(tmp)
-                self.syntax[pos] = tmp[1]
+                self.syntax[pos] = tmp[1], tmp[0]
             pos += 1
         Vs = self.V(sentence)
-        AdvP = self.AdvP(sentence)
+        Cs, AdvPs, PreNs= self.CAdvPreN(sentence)
         As = self.A(sentence)
-        Cs = self.C(sentence)
 
-        print(AdvP)
+        print(AdvPs)
+        print(PreNs)
         print(NPs)  
         print(As)
         print(Vs)
         print(Cs)
 
-        #while self.syntax.count("") > 0:
-        #    self.syntax.remove("")
-        print(self.syntax)
+        while self.syntax.count("") > 0:
+            self.syntax.remove("")
 
-    def C(self, context):
+        for w in self.syntax:
+            print(w[0], end=" ")
+        print("")
+
+        for w in self.syntax:
+            print(w[1], end=" ")
+        print("")
+
+    def CAdvPreN(self, context):
         Cs = []
+        AdvPs = []
+        PreNs = []
         pos = 0
         for w in context:
             if re.match(r"^接続詞$", w[2]) != None:
                 Cs.append( (w[0], "C"))
-                self.syntax[pos] = "C"  
+                self.syntax[pos] = "C", w[0]
+
+                self.insert_db("C", w[0])
+
+            elif "副詞" in w[2]:            
+                AdvPs.append( ( w[0], "AdvP" ))
+                self.syntax[pos] = "AdvP", w[0]
+
+                self.insert_db("Adv", w[0])
+
+            elif "連体詞" in w[2]:
+                PreNs.append( ( w[0], "PreN" ))
+                self.syntax[pos] = "PreN", w[0]
+        
+                self.insert_db("PreN", w[0])
+
             pos += 1
-        return Cs             
-              
+        return Cs, AdvPs, PreNs
+                        
     def V(self, context):
         Vs = []
+        Cs = []
         V = ""
         pos = 0
         for w in context:
             if re.match(r"^動詞",w[2]) != None:
                 V += w[0]
-                self.syntax[pos] = "V"
+
             elif re.match(r"(接続)?助動?詞", w[2]) != None:
                 if V != "":
                     V += w[0]
                     Vs.append( ( V, "V"))
-                    self.syntax[pos] = "V"
+                    self.syntax[pos] = "V", V
+
+                    self.insert_db("V", V)
 
                     V = ""
             pos += 1
         if V != "":
             Vs.append( ( V, "V"))
+            self.syntax[pos] = "V", V
+
+            self.insert_db("V", V)
+
         return Vs
 
     def A(self, context):
@@ -104,35 +142,36 @@ class Analysis:
         A = ""
         pos = 0
         for w in context:
-            if "形容詞" in w[2]:
+            if re.match(r".*形容動*詞", w[2]) != None:
                 A += w[0]
-                self.syntax[pos] = "A"
+
             elif "助動詞" in w[2]:
                 if A != "":
                     A += w[0]
                     As.append( (A, "A"))
-                    self.syntax[pos] = "A"
+                    self.syntax[pos] = "A", A
+                    
+                    self.insert_db("A", A)
 
                     A = ""
             pos += 1
         if A != "":
             As.append( ( A, "A"))
-        return As        
+            self.sytnax[pos] = "A", A
+            self.insert_db("A", A)
 
-    def AdvP(self, context):
-        AdvPs = []
-        pos = 0
-        for w in context:
-            if "副詞" in w[2]:            
-                AdvPs.append( ( w[0], "AdvP" ))
-                self.syntax[pos] = "AdvP"
-            pos += 1
-        return AdvPs
+        return As        
                         
     def NP(self, w1, w2):
         if len(w1) < 3 or len(w2) < 3:
             return None
-        if "名詞" in w1[2] and "助詞" in w2[2]:
+        if re.match(r"^名詞.*[^(形容動詞語幹)]$", w1[2]) != None and re.match(r"助動?詞", w2[2]) != None:
+            
+            self.insert_db("N", w1[0])
+            self.insert_db("CMP", w2[0])
+            
+            self.link(w1[0],"N" , w2[0],"CMP")
+
             if "ガ" in w2[1]:
                 return w1[0] + w2[0], "NPga"
             elif "ニ" in w2[1]:
@@ -148,15 +187,73 @@ class Analysis:
             elif "モ" in w2[1]:
                 return w1[0] + w2[0], "NPmo"
             elif "デ" in w2[1]:
-                return w1[0] + w2[0], "NPmo"
+                return w1[0] + w2[0], "NPde"
+            elif "ナ" in w2[1]:
+                return w1[0] + w2[0], "NPna"
             return w1[0] + w2[0], "NPundef"
-        elif "名詞" in w1[2]:
+        elif re.match(r"^名詞.*[^(形容動詞語幹)]$", w1[2]) != None:
+
+            self.insert_db("N", w1[0])
+
             return w1[0], "N"
         return None
 
 
+    def link(self, s, st, d, dt):
+        iquery = "insert into LINK values( null, ?, ?, ?);"
+    
+        src = self.con.execute("select * from "+ st + " where word='"+s+"';").fetchone()[0]
+        dst = self.con.execute("select * from "+ dt + " where word='"+d+"';").fetchone()[0]
+
+        c = self.con.execute("select  * from LINK where src='"+str(src)+"' and dst='"+str(dst)+"';")
+        res = c.fetchone()
+        if res is None:
+            self.con.execute( iquery, ( src, dst, 1))
+        else:
+            count = int(res[3]) + 1
+            self.con.execute( "update LINK set wei="+ str(count) +" where src='" +str(src)+ "' and dst='"+str(dst)+"';")
+        
+    def insert_db(self, table, word):
+        iquery = "insert into "+table+" values( null, ?, ?);"
+        c = self.con.execute("select  * from "+ table +" where word='"+word+"';")
+        res = c.fetchone()
+        if res is None:
+            self.con.execute( iquery, ( word, 1))
+        else:
+            count = int(res[2]) + 1
+            self.con.execute( "update "+table+" set count="+ str(count) +" where word='" +word+ "';")
+         
+    def create_db(self):
+        table_name = ["N", "CMP", "V", "A", "C", "Adv", "PreN"]
+        for name in table_name:
+            c = """
+            create table """+ name +"""(
+                id integer primary key autoincrement,
+                word text,
+                count integer
+            );
+            """
+            self.con.execute(c)
+        self.con.execute("""
+            create table LINK(
+                id integer primary key autoincrement,
+                src integer,
+                dst integer,
+                wei integer
+            );""")
+        
+    def drop_db(self): 
+        table_name = ["N", "CMP", "V", "A", "C", "Adv", "PreN"]
+        for name in table_name:
+            c = "drop table "+ name +";"
+            self.con.execute(c)
+        self.con.execute("drop table LINK;")
+
 if __name__ == "__main__":
     a = Analysis()
+    #a.drop_db()
+    a.create_db()
+    
     print("="*20)
     s = "つい最近ミズキが転んで泣いた。そして、ゆっくり立ち上がった。"
     print(s)
@@ -194,6 +291,7 @@ if __name__ == "__main__":
     print("="*20)
     a.analysis("ミズキをイオリが食べた、そして結婚した。")
     print("="*20)
+    a.finish()
 
 """
 ミズキ  ミズキ  ミズキ  名詞-一般
