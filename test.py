@@ -8,6 +8,7 @@ class Analysis:
         self.sentences = []
         self.sentence = []
         self.syntax = []
+        
     
     def analysis(self, txt):
         self.lexer(txt)
@@ -56,16 +57,28 @@ class Analysis:
         Vs = self.V(sentence)
         AdvP = self.AdvP(sentence)
         As = self.A(sentence)
+        Cs = self.C(sentence)
+
         print(AdvP)
         print(NPs)  
         print(As)
         print(Vs)
+        print(Cs)
 
-
-        while self.syntax.count("") > 0:
-            self.syntax.remove("")
+        #while self.syntax.count("") > 0:
+        #    self.syntax.remove("")
         print(self.syntax)
-               
+
+    def C(self, context):
+        Cs = []
+        pos = 0
+        for w in context:
+            if re.match(r"^接続詞$", w[2]) != None:
+                Cs.append( (w[0], "C"))
+                self.syntax[pos] = "C"  
+            pos += 1
+        return Cs             
+              
     def V(self, context):
         Vs = []
         V = ""
@@ -73,6 +86,7 @@ class Analysis:
         for w in context:
             if re.match(r"^動詞",w[2]) != None:
                 V += w[0]
+                self.syntax[pos] = "V"
             elif re.match(r"(接続)?助動?詞", w[2]) != None:
                 if V != "":
                     V += w[0]
@@ -92,6 +106,7 @@ class Analysis:
         for w in context:
             if "形容詞" in w[2]:
                 A += w[0]
+                self.syntax[pos] = "A"
             elif "助動詞" in w[2]:
                 if A != "":
                     A += w[0]
@@ -177,7 +192,7 @@ if __name__ == "__main__":
     #a.analysis("ミズキにイオリが現れた")
     #a.analysis("ミズキにイオリが被さった")
     print("="*20)
-    a.analysis("ミズキをイオリが食べた")
+    a.analysis("ミズキをイオリが食べた、そして結婚した。")
     print("="*20)
 
 """
