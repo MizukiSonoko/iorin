@@ -1,4 +1,5 @@
 import MeCab
+import CaboCha
 import re
 
 import sqlite3
@@ -8,6 +9,7 @@ class Analysis:
     con = None
 
     def __init__(self):
+        self.cabocha = CaboCha.Parser()
         self.mecab = MeCab.Tagger ("-Ochasen")
         self.sentences = []
         self.sentence = []
