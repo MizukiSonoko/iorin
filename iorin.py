@@ -4,7 +4,6 @@ import re
 import sqlite3
 import CaboCha
 
-
 class Analysis:
 
     con = None
@@ -30,7 +29,6 @@ class Analysis:
         #for r in res:
         #    print(r[0]+" -> "+r[1])
         print("#"*5)
-
 
     def finish(self):
          self.con.close()
@@ -181,7 +179,7 @@ class Analysis:
             pos += 1
         if A != "":
             As.append( ( A, "A"))
-            self.sytnax[pos] = "A", A
+            self.syntax[pos] = "A", A
             self.insert_db("A", A)
 
         return As
@@ -354,7 +352,8 @@ class Analysis:
             "記号":"S"
         } 
 
-        iquery = "insert into LINK values( null, ?, ?, ?);"
+
+        iquery = "insert into LINK values( null, ?, ?, ?, ?, ?);"
 
         sdat = self.con.execute("select * from "+tables[st]+" where word='"+s+"';").fetchone()
         ddat = self.con.execute("select * from "+tables[dt]+" where word='"+d+"';").fetchone()
@@ -372,13 +371,15 @@ class Analysis:
             exist = False
 
         if exist:
-            c = self.con.execute("select  * from LINK where src='"+str(src)+"' and dst='"+str(dst)+"';")
+            c = self.con.execute("select  * from LINK where src='"+str(src)+"' and srctype='"+tables[st]+"' and "+\
+                    "dst='"+str(dst)+"' and dsttype='"+tables[dt]+"'")
             res = c.fetchone()
             if res is None:
-                self.con.execute( iquery, ( src, dst, 1))
+                self.con.execute( iquery, ( src, tables[st], dst, tables[dt], 1))
             else:
                 count = int(res[3]) + 1
-                self.con.execute( "update LINK set wei="+ str(count) +" where src='" +str(src)+ "' and dst='"+str(dst)+"';")
+                self.con.execute( "update LINK set wei="+ str(count) + " where src='"+str(src)+"' and srctype='"+tables[st]+"' and "+\
+                    "dst='"+str(dst)+"' and dsttype='"+tables[dt]+"'")
 
     def insert_db(self, table, word):
         #print("insert "+word+" to "+ table)
@@ -408,7 +409,7 @@ class Analysis:
             );
             """
             self.con.execute(c)
-        link_table_name = ["NPLINK", "VPLINK", "APLINK", "LINK"]
+        link_table_name = ["NPLINK", "VPLINK", "APLINK"]
         for name in link_table_name:
             self.con.execute("""            
                 create table """+ name +"""(
@@ -417,6 +418,17 @@ class Analysis:
                     dst integer,
                     wei integer
                 );""")
+
+        self.con.execute("""            
+            create table LINK(
+                id integer primary key autoincrement,
+                src integer,
+                srctype text,
+                dst integer,
+                dsttype text,
+                wei integer
+            );""")
+
 
     def drop_db(self):
         if not self.use_db:
@@ -428,78 +440,59 @@ class Analysis:
             self.con.execute(c)
         self.con.execute("drop table LINK;")
 
-
-class Generate:
-
-    con = None
-
-    def __init__(self):
-        self.cabocha = CaboCha.Parser()
-        self.mecab = MeCab.Tagger ("-Ochasen")
-        self.sentences = []
-        self.sentence = []
-        self.con = sqlite3.connect("iori.db", isolation_level=None)
-
-    def finish(self):
-         self.con.close()
-
-    def random(self, n):
-        #TODO
-        return 1
-
-    def say(self):
-        what = random(5)
-
-    def N(self):
-
-        c = self.con.execute("select max(id) from N;")
-        res = c.fetchone()
-        if res is None:
-            raise RuntimeError("DB not found!!")
-        else:
-            print(res)
-
-
 if __name__ == "__main__":
+
+
     a = Analysis()
     #a.drop_db()
     a.create_db()
 
-    print("="*20)
-    s = "つい最近ミズキが転んで泣いた。そして、ゆっくり立ち上がった。"
-    print(s)
-    a.analysis(s)
-    print("="*20)
-    s = "千夜ちゃん、この前の英語のノート見せてくれる？"
-    print(s)
-    a.analysis(s)
-    print("="*20)
-    s = "私もシャロさんみたいな姉が欲しかったです。"
-    print(s)
-    a.analysis(s)
-    print("="*20)
-    s = "私、夕日の中で何度も倒れながら特訓するのがあこがれで～"
-    print(s)
-    a.analysis(s)
-    print("="*20)
-    s = "だんだんココアっぽくなってきてないか……？"
-    print(s)
-    a.analysis(s)
-    print("="*20)
+    sentences = [
+    "ズバリ、もふもふ喫茶!!",
+    "可愛い妹たちのためなら石膏像になる覚悟もあるよ！",
+    "マジなんだから種族の壁くらい越えられるんだよ！",
+    "持つべきものは友と妹だね",
+    "私　夕日の中で何度も倒れながら特訓するのが憧れで・・・",
+    "大人になってもここで３人で働けたら素敵だね",
+    "この酸味・・・キリマンジャロだね？",
+    "なんか　裏世界の情報提供してそうでかっこいいね",
+    "お願いもう一回",
+    "もう一回言って",
+    "せめてモフモフさせて！",
+    "本体まっしぐら！",
+    "街の国際バリスタ弁護士になるよ！",
+    "いつかうさぎになれますよーに！",
+    "この上品な香り、これがブルーマウンテンか！",
+    "この酸味、キリマンジャロだね！",
+    "安心する味、これインスタントの……",
+    "うん全部おいしい",
+    "チノちゃんにはセーラー服が似合うよ！",
+    "でも大丈夫！今度は隠しレベルの私が相手してあげるね！",
+    "いけない チノちゃんにお土産買ってかなきゃ",
+    "大変チノちゃん！ くのいちが！",
+    "私のお茶碗は実家から持って来たこだわりの一品だよ",
+    "私の事はお姉ちゃんって呼んでね",
+    "チノちゃんの歯はちょこんとしててかわいいねー",
+    "ティッピーどこいったんだろ？",
+    "うさぎも気を引きたくて死んだフリするんだよ",
+    "深呼吸すると花のミックスジュースだよ！",
+    "二人とも制服よく似合ってるよ　あともう2色増えたら悪と戦うのも夢じゃないよ！",
+    "コーヒーを使った占いの事を昔からカフェ・ド・マンシーって呼んでるんだって",
+    "だめだよ私！ 学校に行かなきゃ！ もふもふしてたら確実に遅刻しちゃう！ でも…でもでも！ はぁ～もふもふきもちいい～ ",
+    "えへへー じゃあ皆さん 今日からよろしくお願いします♪ ",
+    "私 数学と物理が得意なんだー ",
+    "今リゼちゃんがそっちに特攻するって",
+    "コーヒー3杯頼んだから3回触る権利を手に入れたよ！",
+    ]
 
-    #a.analysis("ミズキが踊る")
-    #print("="*20+"\nV[ga,o]\n")
-    #a.analysis("ミズキがイオリを食べた")
-    #a.analysis("ミズキがイオリを食べる")
-    #a.analysis("ミズキがイオリを読んだ")
-    #a.analysis("ミズキがイオリを呼ぶ")
-    #print("="*20+"\nV[ni,ga]\n")
-    #a.analysis("ミズキにイオリが届いた")
-    #a.analysis("ミズキにイオリが届く")
-    #a.analysis("ミズキにイオリが現れた")
-    #a.analysis("ミズキにイオリが被さった")
-    print("="*20)
-    a.analysis("ミズキをイオリが食べた、そして結婚した。")
-    print("="*20)
+    for s in sentences:
+        print("="*20)
+        print(s)
+        a.analysis(s)
+
+
+
     a.finish()
+
+
 
