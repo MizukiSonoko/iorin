@@ -20,105 +20,110 @@ class Generate:
 
     def say(self):
         sentence = self.Sentence()
-        print(sentence)
+        think = self.random(4)
+        if think == 0:
+            print(sentence + "！")
+        elif think == 1:
+            print(sentence + "〜")
+        else:
+            print(sentence)
+
+    def Sentence(self):
+        sentence = ""
+        cnt = 0
+        while True:
+            think = self.random(4)
+            if think == 0:
+                AP = self.AP()
+                sentence += AP
+
+                cnt += 1
+
+            elif think == 1:
+                NP = self.VP()
+                sentence += NP
+
+                cnt += 1
+
+            elif think == 2:
+                Adv = self.Adv()
+                sentence += Adv
+
+                cnt += 1
+
+            elif think == 3:
+                VP = self.VP()
+                sentence += VP
+
+                if cnt > 3:
+                    break
+            else:
+                if cnt > 3:
+                    break
+        return sentence
+
 
 
     def AP(self):
-        Aid, A= self.A() 
-        c = self.con.execute("select src, dst from APLINK where src="+ str(Aid) +";")
-        res = c.fetchone()
-        if res is None:
-            return "ね"
-            #raise RuntimeError("Link data not found!!")
-        cmpid = res[1]
-        c = self.con.execute("select word from CMP where id="+ str(cmpid) +";")
-        res = c.fetchone()
-        if res is None:
-            raise RuntimeError("CMP data not found!!")
-
-        return A + res[0]
+        Aid, A = self.A() 
+        phrase =  self.__get_phrase(Aid, A, "APLINK")
+        if not phrase:
+            return A
+        return phrase
 
     def VP(self):
         Vid, V = self.V() 
-        c = self.con.execute("select src, dst from VPLINK where src="+ str(Vid) +";")
-        res = c.fetchone()
-        if res is None:
+        phrase =  self.__get_phrase(Vid, V, "VPLINK")
+        if not phrase:
             return V
-            #raise RuntimeError("Link data not found!!")
-
-        cmpid = res[1]
-        c = self.con.execute("select word from CMP where id="+ str(cmpid) +";")
-        res = c.fetchone()
-        if res is None:
-            return V + "だ"
-            #raise RuntimeError("CMP data not found!!")
-
-        return V + res[0]
-        
+        return phrase
 
     def NP(self):
         Nid, N = self.N() 
-        c = self.con.execute("select src, dst from NPLINK where src="+ str(Nid) +";")
+        phrase =  self.__get_phrase(Nid, N, "NPLINK")
+        if not phrase:
+            return N
+        return phrase
+        
+    def Adv(self):
+        return str(self.__get_word("Adv")[1])
+
+
+    def A(self):
+        return self.__get_word("A")
+
+    def V(self):
+        return self.__get_word("V")
+
+    def N(self):
+        return self.__get_word("N")
+
+
+    def __get_phrase(self, id, word, table):
+
+        c = self.con.execute("select src, dst from "+ table +" where src="+ str(id) +";")
         res = c.fetchone()
         if res is None:
-            return N
+            return None
             #raise RuntimeError("Link data not found!!")
 
         cmpid = res[1]
         c = self.con.execute("select word from CMP where id="+ str(cmpid) +";")
         res = c.fetchone()
         if res is None:
-            return N + "が"
+            return None
             #raise RuntimeError("CMP data not found!!")
 
-        return N + res[0]
-        
-    def Sentence(self):
-        NP = self.NP()
-        think = self.random(3)
-        if think == 0:
-            AP = self.AP()
-            return NP + AP
-        else:
-            VP = self.VP()
-            return NP + VP
+        return word + res[0]
 
+    def __get_word(self, table):
 
-    def A(self):
-        c = self.con.execute("select max(id) from A;")
+        c = self.con.execute("select max(id) from " + table + ";")
         res = c.fetchone()
         if res is None:
-            raise RuntimeError("DB not found!!")
+            raise RuntimeError(V + " DB not found!!")
         id = self.random(res[0])
-        c = self.con.execute("select id, word from A where id="+ str(id) + ";")
-        res = c.fetchone()
-        if res is None:
-            raise RuntimeError("Data dose not exist!")
-
-        return res[0], res[1]
-
-
-    def V(self):
-        c = self.con.execute("select max(id) from V;")
-        res = c.fetchone()
-        if res is None:
-            raise RuntimeError("DB not found!!")
-        id = self.random(res[0])
-        c = self.con.execute("select id, word from V where id="+ str(id) + ";")
-        res = c.fetchone()
-        if res is None:
-            raise RuntimeError("Data dose not exist!")
-
-        return res[0], res[1]
-
-
-    def N(self):
-        c = self.con.execute("select max(id) from N;")
-        res = c.fetchone()
-        if res is None:
-            raise RuntimeError("DB not found!!")
-        id = self.random(res[0])
-        c = self.con.execute("select id, word from N where id="+ str(id) + ";")
+        c = self.con.execute("select id, word from " + table + " where id="+ str(id) + ";")
         res = c.fetchone()
         if res is None:
             raise RuntimeError("Data dose not exist!")
@@ -131,3 +136,4 @@ if __name__ == "__main__":
     g = Generate()
     g.say()
     g.finish()
+
