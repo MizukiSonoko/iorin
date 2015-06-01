@@ -6,10 +6,15 @@ class Generate:
 
     con = None
 
-    def __init__(self):
+    def __init__(self, db=None):
         self.sentences = []
         self.sentence = []
-        self.con = sqlite3.connect("iori.db", isolation_level=None)
+        if db:
+            print("db is "+db)
+            self.con = sqlite3.connect(db, isolation_level=None)
+        else:
+            print("db is iori.db")
+            self.con = sqlite3.connect("iori.db", isolation_level=None)
 
     def finish(self):
          self.con.close()
@@ -22,11 +27,11 @@ class Generate:
         sentence = self.Sentence()
         think = self.random(4)
         if think == 0:
-            print(sentence + "！")
+            return sentence + "！"
         elif think == 1:
-            print(sentence + "〜")
+            return sentence + "〜"
         else:
-            print(sentence)
+            return sentence
 
     def Sentence(self):
         sentence = ""
@@ -55,10 +60,10 @@ class Generate:
                 VP = self.VP()
                 sentence += VP
 
-                if cnt > 3:
+                if cnt > 1:
                     break
             else:
-                if cnt > 3:
+                if cnt > 1:
                     break
         return sentence
 
@@ -134,6 +139,6 @@ if __name__ == "__main__":
 
 
     g = Generate()
-    g.say()
+    print(g.say())
     g.finish()
 
