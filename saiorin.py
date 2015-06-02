@@ -23,13 +23,27 @@ class Generate:
 
     def say(self):
         sentence = self.Sentence()
-        think = self.random(4)
-        if think == 0:
-            return sentence + "！"
-        elif think == 1:
-            return sentence + "〜"
+        return sentence
+
+    def rule(self, typ):
+        #print("type:"+typ)
+        if typ == "Adv":
+            return [self.VP, self.NP, self.AP]
+        elif typ == "VP":
+            return [self.C, self.END]
+        elif typ == "AP":
+            return [self.C, self.NP, self.END]
+        elif typ == "C" or typ == "BEGIN":
+            return [self.VP, self.AP, self.NP]
+        elif typ == "NP":
+            return [self.NP, self.AP]
+        elif typ == "N" or typ == "A" or typ == "V":
+            return [self.CMP]
+        elif typ == "CMP":
+            return [self.NP, self.VP, self.AP]
         else:
-            return sentence
+            #print(typ)
+            return [self.END]
 
     def Sentence(self):
         syntax = ["BEGIN"]
@@ -38,49 +52,19 @@ class Generate:
         cnt = 0
         
         while True:
-            think = self.random(4)
-            if think == 0:
-                if syntax[-1] == "AP":
-                    continue
-                AP = self.AP()
-                sentence += AP
-
-                syntax.append("AP")
-                cnt += 1
-
-            elif think == 1:
-                if syntax[-1] == "NP":
-                    continue
-
-                NP = self.VP()
-                sentence += NP
-
-                syntax.append("NP")
-                cnt += 1
-
-            elif think == 2:
-                if syntax[-1] == "Adv":
-                    continue
-
-                Adv = self.Adv()
-                sentence += Adv
-
-                syntax.append("Adv")
-                cnt += 1
-
-            elif think == 3:
-                if syntax[-1] == "VP":
-                    continue
-                VP = self.VP()
-                sentence += VP
-
-                syntax.append("VP")
-                if cnt > 1:
-                    break
+            Rs = self.rule(syntax[-1])
+            if len(Rs) == 1:
+                think = 0
             else:
-                if cnt > 1:
-                    break
-
+                think = self.random(len(Rs))
+            
+            phrase, typ = Rs[think]()
+#            print("P:"+str(phrase) + "type:"+ str(typ))
+            syntax.append(typ)
+            sentence += phrase
+            if typ == "END":
+                break
+  
         print(syntax)
         return sentence
 
@@ -90,26 +74,37 @@ class Generate:
         Aid, A = self.A() 
         phrase =  self.__get_phrase(Aid, A, "APLINK")
         if not phrase:
-            return A
-        return phrase
+            return A, "A"
+        return phrase, "AP"
 
     def VP(self):
         Vid, V = self.V() 
         phrase =  self.__get_phrase(Vid, V, "VPLINK")
         if not phrase:
-            return V
-        return phrase
+            return V, "V"
+        return phrase, "VP"
 
     def NP(self):
         Nid, N = self.N() 
         phrase =  self.__get_phrase(Nid, N, "NPLINK")
         if not phrase:
-            return N
-        return phrase
+            return N, "N"
+        return phrase, "NP"
         
     def Adv(self):
-        return str(self.__get_word("Adv")[1])
+        return str(self.__get_word("Adv")[1]), "Adv"
 
+    def END(self):
+        think = self.random(5)
+        if think == 1:
+            txt = "。"
+        elif think == 2:
+            txt = "！"
+        elif think == 3:
+            txt = "〜"
+        else:
+            txt = ""
+        return txt, "END"
 
     def A(self):
         return self.__get_word("A")
@@ -120,6 +115,11 @@ class Generate:
     def N(self):
         return self.__get_word("N")
 
+    def C(self):
+        return self.__get_word("C")[1], "C"
+
+    def CMP(self):
+        return self.__get_word("CMP")[1], "CMP"
 
     def __get_phrase(self, id, word, table):
 
