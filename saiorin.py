@@ -10,10 +10,8 @@ class Generate:
         self.sentences = []
         self.sentence = []
         if db:
-            print("db is "+db)
             self.con = sqlite3.connect(db, isolation_level=None)
         else:
-            print("db is iori.db")
             self.con = sqlite3.connect("iori.db", isolation_level=None)
 
     def finish(self):
@@ -34,37 +32,56 @@ class Generate:
             return sentence
 
     def Sentence(self):
+        syntax = ["BEGIN"]
+
         sentence = ""
         cnt = 0
+        
         while True:
             think = self.random(4)
             if think == 0:
+                if syntax[-1] == "AP":
+                    continue
                 AP = self.AP()
                 sentence += AP
 
+                syntax.append("AP")
                 cnt += 1
 
             elif think == 1:
+                if syntax[-1] == "NP":
+                    continue
+
                 NP = self.VP()
                 sentence += NP
 
+                syntax.append("NP")
                 cnt += 1
 
             elif think == 2:
+                if syntax[-1] == "Adv":
+                    continue
+
                 Adv = self.Adv()
                 sentence += Adv
 
+                syntax.append("Adv")
                 cnt += 1
 
             elif think == 3:
+                if syntax[-1] == "VP":
+                    continue
                 VP = self.VP()
                 sentence += VP
 
+                syntax.append("VP")
                 if cnt > 1:
                     break
             else:
                 if cnt > 1:
                     break
+
+        print(syntax)
         return sentence
 
 
